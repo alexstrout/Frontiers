@@ -1,0 +1,38 @@
+{
+	"Groups": [
+		{
+			"Name": "ModSettings",
+			"DisplayName": "Settings",
+			"Elements": [
+				{
+					"Name": "ModeToggleOnL3",
+					"DisplayName": "Toggle Homing / Spanner Mode on L3",
+					"Description": [
+						"Allows toggling between Homing Attack / Spanner Throw modes with L3 (Light Dash) button."
+					],
+					"Type": "bool",
+					"DefaultValue": "True"
+				},
+				{
+					"Name": "HomingAttackEnemies",
+					"DisplayName": "Allow Homing Attacks on Enemies",
+					"Description": [
+						"Allows Tails to Homing Attack enemies while in Homing Attack mode.\n\nIf disabled, Tails only will Homing Attack targets without life bars, automatically using Spanners otherwise."
+					],
+					"Type": "bool",
+					"DefaultValue": "True"
+				},
+				{
+					"Name": "SpannerLockOnSound",
+					"DisplayName": "Spanner Lock-On Reminder Sound",
+					"Description": [
+						"Plays a Spanner sound when locking a target while in Spanner Throw mode."
+					],
+					"Type": "bool",
+					"DefaultValue": "True"
+				}
+			]
+		}
+	],
+	"IniFile": "config.ini"
+}

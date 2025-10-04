@@ -1,0 +1,109 @@
+Code "Allow Homing Attack" in "Gameplay/Skills/Tails" by "fox, Susero, Hyper" does
+/*
+Allows Tails to Homing Attack locked targets.
+
+Toggle Spanner Throw with L3 (Light Dash) button.
+*/
+
+#lib "GameObject"
+#lib "Player"
+#lib "Time"
+#lib "HMM"
+#lib "INI"
+#include "BlackboardStatus" noemit
+
+const string FX_HANDLE = "TailsHomingSwapFx";
+
+static List<Tails.StateID> HomingStates = new()
+{
+    Tails.StateID.StateHomingAttackRoot,
+    Tails.StateID.StateHomingAttack,
+    Tails.StateID.StateHomingAttackInStorm,
+    Tails.StateID.StateHomingFinished,
+    Tails.StateID.StateHomingFinish,
+    Tails.StateID.StateHomingRepelled
+};
+
+static bool InitConfig = true;
+static bool CfgAllowToggle = true;
+static bool CfgAllowEnemies = true;
+static bool CfgSpannerReminder = true;
+
+static bool HomingActive = true;
+static float FxTime = 0f;
+static int FxCount = 0;
+static System.Random RNG = new();
+
+static GameObject.Data* PrevLockOnTarget;
+
+{
+    if (Player.GetPlayerType() != Player.PlayerType.Tails)
+        return;
+
+    if (InitConfig)
+    {
+        InitConfig = false;
+
+        var modsQuery = HMM.FindModsByName("Tails Smart Homing Attack");
+        if (modsQuery.Count == 1)
+        {
+            string modConfigIniPath = System.IO.Path.Combine(modsQuery[0].Path, "config.ini");
+            var ini = INI.Read(modConfigIniPath);
+
+            CfgAllowToggle = INI.Parse<bool>(ini["ModSettings"]["ModeToggleOnL3"], CfgAllowEnemies);
+            CfgAllowEnemies = INI.Parse<bool>(ini["ModSettings"]["HomingAttackEnemies"], CfgAllowEnemies);
+            CfgSpannerReminder = INI.Parse<bool>(ini["ModSettings"]["SpannerLockOnSound"], CfgSpannerReminder);
+        }
+    }
+
+    if (CfgAllowToggle && Player.Input.IsPressed(Player.InputActionType.PlayerLightDash))
+    {
+        HomingActive = !HomingActive;
+        FxTime = 0.4f;
+
+        for (; FxCount > 0; FxCount--)
+            Player.Effect.StopEffect(FX_HANDLE);
+
+        if (HomingActive)
+        {
+            Player.Sound.PlaySound("sn_short_homing");
+            Player.Effect.PlayEffect(FX_HANDLE, "ef_tap_spinatk01_end01");
+        }
+        else
+        {
+            Player.Sound.PlaySound("ta_spanner_hit");
+            if (RNG.Next(100) < 50)
+                Player.Effect.PlayEffect(FX_HANDLE, "ef_tap_spanner_throw_end01");
+            else
+                Player.Effect.PlayEffect(FX_HANDLE, "ef_tap_spanner_throw_end02");
+        }
+        FxCount = 1;
+    }
+
+    if (FxTime > 0f)
+    {
+        FxTime -= Time.GetDeltaTime();
+        if (FxTime <= 0f)
+            for (; FxCount > 0; FxCount--)
+                Player.Effect.StopEffect(FX_HANDLE);
+    }
+
+    var LockOnTarget = Player.Status.GetLockOnTarget();
+    if (LockOnTarget == null)
+    {
+        PrevLockOnTarget = null;
+        return;
+    }
+
+    if (CfgSpannerReminder && LockOnTarget != PrevLockOnTarget)
+    {
+        PrevLockOnTarget = LockOnTarget;
+        if (!HomingActive)
+            Player.Sound.PlaySound("ta_spanner_hit");
+    }
+
+    if (HomingActive && Player.Input.IsPressed(Player.InputActionType.PlayerAttack)
+    && (CfgAllowEnemies || GameObject.GetGOC(LockOnTarget, "GOCHealth") == null)
+    && !(IS_WORLD_FLAG(IsDamagedOrRepelled) || HomingStates.Contains(Player.State.GetCurrentStateID<Tails.StateID>())))
+        Player.State.SetState<Tails.StateID>(Tails.StateID.StateHomingAttack);
+}
