@@ -44,15 +44,22 @@ static GameObject.Data* PrevLockOnTarget;
     {
         InitConfig = false;
 
-        var modsQuery = HMM.FindModsByName("Tails Smart Homing Attack");
-        if (modsQuery.Count == 1)
-        {
-            string modConfigIniPath = System.IO.Path.Combine(modsQuery[0].Path, "config.ini");
-            var ini = INI.Read(modConfigIniPath);
+        //Avoid crashing the game if config is missing or malformed
+        try {
+            var modsQuery = HMM.FindModsByName("Tails Smart Homing Attack");
+            if (modsQuery.Count == 1)
+            {
+                string modConfigIniPath = System.IO.Path.Combine(modsQuery[0].Path, "config.ini");
+                var ini = INI.Read(modConfigIniPath);
 
-            CfgAllowToggle = INI.Parse<bool>(ini["ModSettings"]["ModeToggleOnL3"], CfgAllowEnemies);
-            CfgAllowEnemies = INI.Parse<bool>(ini["ModSettings"]["HomingAttackEnemies"], CfgAllowEnemies);
-            CfgSpannerReminder = INI.Parse<bool>(ini["ModSettings"]["SpannerLockOnSound"], CfgSpannerReminder);
+                CfgAllowToggle = INI.Parse<bool>(ini["ModSettings"]["ModeToggleOnL3"], CfgAllowEnemies);
+                CfgAllowEnemies = INI.Parse<bool>(ini["ModSettings"]["HomingAttackEnemies"], CfgAllowEnemies);
+                CfgSpannerReminder = INI.Parse<bool>(ini["ModSettings"]["SpannerLockOnSound"], CfgSpannerReminder);
+            }
+        }
+        catch (Exception e) {
+            Logger.Error("TailsSmartHoming: Error reading config, try configuring the mod in HMM! Details:");
+            Logger.Error(e);
         }
     }
 
