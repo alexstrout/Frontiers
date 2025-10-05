@@ -23,20 +23,20 @@ static bool CfgAllowEnemies = true;
 static bool CfgSpannerReminder = true;
 
 static bool HomingActive = true;
-static float FxTime = 0f;
-static int FxCount = 0;
-static System.Random RNG = new();
 
-static float HomingTime;
+static float HomingDownTime;
 static Tails.StateID PrevState;
 static GameObject.Data* PrevLockOnTarget;
 
 {
+    //Ignore if not Tails
     if (Player.GetPlayerType() != Player.PlayerType.Tails)
         return;
 
+    //Configuration support
     if (InitConfig)
     {
+        //Do only once - TODO maybe this can just be Patch code w/ statics
         InitConfig = false;
 
         //Avoid crashing the game if config is missing or malformed
@@ -58,70 +58,59 @@ static GameObject.Data* PrevLockOnTarget;
         }
     }
 
+    //Homing Attack / Spanner Throw mode toggle
     if (CfgAllowToggle && Player.Input.IsPressed(Player.InputActionType.PlayerLightDash))
     {
         HomingActive = !HomingActive;
-        FxTime = 0.4f;
-
-        for (; FxCount > 0; FxCount--)
-            Player.Effect.StopEffect(FX_HANDLE);
-
         if (HomingActive)
         {
+            //TODO These look a derpy at feet - can they be moved?
             Player.Sound.PlaySound("sn_short_homing");
             Player.Effect.PlayEffect(FX_HANDLE, "ef_tap_spinatk01_end01");
         }
         else
         {
             Player.Sound.PlaySound("ta_spanner_hit");
-            if (RNG.Next(100) < 50)
-                Player.Effect.PlayEffect(FX_HANDLE, "ef_tap_spanner_throw_end01");
-            else
-                Player.Effect.PlayEffect(FX_HANDLE, "ef_tap_spanner_throw_end02");
+            Player.Effect.PlayEffect(FX_HANDLE, "ef_tap_spanner_throw_end01");
         }
-        FxCount = 1;
     }
 
-    if (FxTime > 0f)
-    {
-        FxTime -= Time.GetDeltaTime();
-        if (FxTime <= 0f)
-            for (; FxCount > 0; FxCount--)
-                Player.Effect.StopEffect(FX_HANDLE);
-    }
-
+    //State tracking - determine HomingDownTime if we just bopped an enemy
     var CurState = Player.State.GetCurrentStateID<Tails.StateID>();
     if (CurState == Tails.StateID.StateHomingFinished && CurState != PrevState)
     {
         //Use Sonic parameters as Tails by default has no Cyberspace definition
         //Players probably reasonably expect homing behavior to match Sonic's anyhow
+        //HACK Fudging a magic 0.2f to more closely match other characters' cadence - another var?
         var ParamInfo = Reflection.GetDataInfo<SonicParameters.Root>("player_common")
         if (ParamInfo != null && ParamInfo.pData != null)
-            HomingTime = RFL_GET_CONTEXTUAL_PLAYER_PARAM(ParamInfo, modePackage.homingAttack.sonicBounce.attackDownTime) + 0.2f;
+            HomingDownTime = RFL_GET_CONTEXTUAL_PLAYER_PARAM(ParamInfo, modePackage.homingAttack.sonicBounce.attackDownTime) + 0.2f;
     }
     PrevState = CurState;
 
-    if (HomingTime > 0f)
+    //Decrement HomingDownTime...
+    if (HomingDownTime > 0f)
     {
-        HomingTime -= Time.GetDeltaTime();
-        if (HomingTime < 0f)
-            HomingTime = 0f;
+        HomingDownTime -= Time.GetDeltaTime();
+        if (HomingDownTime < 0f)
+            HomingDownTime = 0f;
     }
 
+    //Lock-on tracking
     var LockOnTarget = Player.Status.GetLockOnTarget();
-    if (LockOnTarget == null)
+    if (LockOnTarget != null)
     {
-        PrevLockOnTarget = null;
-        return;
+        //Play spanner bonk if desired to remind us which mode we're in
+        if (CfgSpannerReminder && LockOnTarget != PrevLockOnTarget && !HomingActive)
+            Player.Sound.PlaySound("ta_spanner_hit");
+
+        //Bop that target! Nyooom
+        //TODO GOCHealth is used to determine enemies, but inconsistent (e.g. Cyberspace) - better method?
+        if (HomingActive && HomingDownTime == 0f
+        && Player.Input.IsPressed(Player.InputActionType.PlayerAttack)
+        && (CfgAllowEnemies || GameObject.GetGOC(LockOnTarget, "GOCHealth") == null)
+        && !(IS_WORLD_FLAG(IsDamagedOrRepelled) || HomingStates.Contains(CurState)))
+            Player.State.SetState<Tails.StateID>(Tails.StateID.StateHomingAttack);
     }
-
-    if (CfgSpannerReminder && LockOnTarget != PrevLockOnTarget && !HomingActive)
-        Player.Sound.PlaySound("ta_spanner_hit");
     PrevLockOnTarget = LockOnTarget;
-
-    if (HomingActive && HomingTime == 0f
-    && Player.Input.IsPressed(Player.InputActionType.PlayerAttack)
-    && (CfgAllowEnemies || GameObject.GetGOC(LockOnTarget, "GOCHealth") == null)
-    && !(IS_WORLD_FLAG(IsDamagedOrRepelled) || HomingStates.Contains(CurState)))
-        Player.State.SetState<Tails.StateID>(Tails.StateID.StateHomingAttack);
 }
