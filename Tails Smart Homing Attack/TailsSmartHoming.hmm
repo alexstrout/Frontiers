@@ -7,6 +7,8 @@ Toggle Spanner Throw with L3 (Light Dash) button.
 
 #include "Reflection" noemit
 #lib "HMM"
+#lib "Logger"
+#lib "Time"
 
 const string FX_HANDLE = "TailsHomingSwapFx";
 
