@@ -85,8 +85,9 @@ static GameObject.Data* PrevLockOnTarget;
         //Players probably reasonably expect homing behavior to match Sonic's anyhow
         //HACK Fudging a magic 0.2f to more closely match other characters' cadence - another var?
         var ParamInfo = Reflection.GetDataInfo<SonicParameters.Root>("player_common")
-        if (ParamInfo != null && ParamInfo.pData != null)
-            HomingDownTime = RFL_GET_CONTEXTUAL_PLAYER_PARAM(ParamInfo, modePackage.homingAttack.sonicBounce.attackDownTime) + 0.2f;
+        HomingDownTime = (ParamInfo != null && ParamInfo.pData != null)
+            ? RFL_GET_CONTEXTUAL_PLAYER_PARAM(ParamInfo, modePackage.homingAttack.sonicBounce.attackDownTime) + 0.2f
+            : 0.7f; //Default if info not loaded yet, e.g. Arcade Mode w/o save
     }
     PrevState = CurState;
 
