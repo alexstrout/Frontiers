@@ -27,6 +27,7 @@ static bool CfgSpannerReminder = true;
 static bool HomingActive = true;
 
 static float HomingDownTime;
+static bool HomingInputBuffer;
 static Tails.StateID PrevState;
 static GameObject.Data* PrevLockOnTarget;
 
@@ -107,13 +108,22 @@ static GameObject.Data* PrevLockOnTarget;
         if (CfgSpannerReminder && LockOnTarget != PrevLockOnTarget && !HomingActive)
             Player.Sound.PlaySound("ta_spanner_hit");
 
-        //Bop that target! Nyooom
+        //Inline helper functions
+        bool IsHomingInputPressed() => Player.Input.IsPressed(Player.InputActionType.PlayerAttack)
+            || (HomingInputBuffer && CurState == Tails.StateID.StateHomingFinished);
         //TODO GOCHealth is used to determine enemies, but inconsistent (e.g. Cyberspace) - better method?
-        if (HomingActive && HomingDownTime == 0f
-        && Player.Input.IsPressed(Player.InputActionType.PlayerAttack)
-        && (CfgAllowEnemies || GameObject.GetGOC(LockOnTarget, "GOCHealth") == null)
-        && !(IS_WORLD_FLAG(IsDamagedOrRepelled) || HomingStates.Contains(CurState)))
-            Player.State.SetState<Tails.StateID>(Tails.StateID.StateHomingAttack);
+        bool IsValidTarget() => CfgAllowEnemies || GameObject.GetGOC(LockOnTarget, "GOCHealth") == null;
+        bool IsValidState() => !(IS_WORLD_FLAG(IsDamagedOrRepelled) || HomingStates.Contains(CurState));
+
+        //Bop that target! Nyooom
+        if (HomingActive && IsHomingInputPressed() && IsValidTarget() && IsValidState())
+        {
+            //Either just pushed the button, or need to unset buffer
+            HomingInputBuffer = HomingDownTime > 0f;
+
+            if (!HomingInputBuffer) //Infers HomingDownTime == 0f
+                Player.State.SetState<Tails.StateID>(Tails.StateID.StateHomingAttack);
+        }
     }
     PrevLockOnTarget = LockOnTarget;
 }
