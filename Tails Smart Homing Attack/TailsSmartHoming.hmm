@@ -98,6 +98,10 @@ static GameObject.Data* PrevLockOnTarget;
         HomingDownTime -= Time.GetDeltaTime();
         if (HomingDownTime < 0f)
             HomingDownTime = 0f;
+
+        //Buffer an attack button if on cooldown, similar to real controls
+        if (Player.Input.IsPressed(Player.InputActionType.PlayerAttack))
+            HomingInputBuffer = true;
     }
 
     //Lock-on tracking
@@ -116,14 +120,13 @@ static GameObject.Data* PrevLockOnTarget;
         bool IsValidState() => !(IS_WORLD_FLAG(IsDamagedOrRepelled) || HomingStates.Contains(CurState));
 
         //Bop that target! Nyooom
-        if (HomingActive && IsHomingInputPressed() && IsValidTarget() && IsValidState())
-        {
-            //Either just pushed the button, or need to unset buffer
-            HomingInputBuffer = HomingDownTime > 0f;
-
-            if (!HomingInputBuffer) //Infers HomingDownTime == 0f
-                Player.State.SetState<Tails.StateID>(Tails.StateID.StateHomingAttack);
-        }
+        if (HomingActive && HomingDownTime == 0f
+        && IsHomingInputPressed() && IsValidTarget() && IsValidState())
+            Player.State.SetState(Tails.StateID.StateHomingAttack);
     }
     PrevLockOnTarget = LockOnTarget;
+
+    //Clear buffered input if no longer needed
+    if (HomingInputBuffer && HomingDownTime == 0f)
+        HomingInputBuffer = false;
 }
